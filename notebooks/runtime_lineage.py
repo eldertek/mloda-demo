@@ -22,33 +22,40 @@ def _():
     import functools
 
     import marimo as mo
+    from mloda.community.extenders.openlineage import OpenLineageExtender
+    from mloda.community.extenders.otel.otel_extender import OtelExtender
     from mloda.community.feature_groups.experimental.german_ledger.skr import ChartConflict
     from mloda.user import Feature, mloda
 
     from mloda_demo import runtime_lineage as demo
 
-    # The local details, named once: the clients' books, the charts the office can read, the hooks.
+    # The local details, named once: the clients' books, the charts the office can read, where the hooks send.
     client_a, client_b, client_c = str(demo.CLIENT_A), str(demo.CLIENT_B), str(demo.CLIENT_C)
     client_b_corrected = str(demo.CLIENT_B_CORRECTED)
     reads_skr04, reads_skr03 = demo.READS_SKR04, demo.READS_SKR03
     recorded = demo.telemetry()
-    hooks = set(recorded.extenders)  # OtelExtender and OpenLineageExtender; OtelMetricsExtender with the stack
+    traces, lineage = recorded.tracer_provider, recorded.lineage
+    metrics = recorded.metrics  # empty; the OtelMetricsExtender with the stack
     office = {"compute_frameworks": ["PyArrowTable"], "data_access_collection": demo.BOOKS}
     show = functools.partial(demo.show, telemetry=recorded)
     return (
         ChartConflict,
         Feature,
+        OpenLineageExtender,
+        OtelExtender,
         client_a,
         client_b,
         client_b_corrected,
         client_c,
-        hooks,
+        lineage,
+        metrics,
         mloda,
         mo,
         office,
         reads_skr03,
         reads_skr04,
         show,
+        traces,
     )
 
 
@@ -57,15 +64,30 @@ def _(mo):
     mo.md(r"""
     ## The case
 
-    | The run | The number |
-    |---|---|
-    | Green | Wrong |
+    | Ticket | Question | Client says | Monitoring |
+    |---|---|---|---|
+    | Wrong number from the assistant | Open receivables of client B? | 7,500.00 | all green |
+
+    The number goes into the 2025 closing.
     """)
     return
 
 
 @app.cell
-def _(Feature, client_b, hooks, mloda, office, reads_skr04, show):
+def _(
+    Feature,
+    OpenLineageExtender,
+    OtelExtender,
+    client_b,
+    lineage,
+    metrics,
+    mloda,
+    office,
+    reads_skr04,
+    show,
+    traces,
+):
+    hooks = {OtelExtender(tracer_provider=traces), OpenLineageExtender(client=lineage), *metrics}
     # What are client B's open receivables?
     show(
         mloda.run_all(
@@ -76,7 +98,7 @@ def _(Feature, client_b, hooks, mloda, office, reads_skr04, show):
         ),
         evidence=False,
     )
-    return
+    return (hooks,)
 
 
 @app.cell(hide_code=True)

@@ -6,12 +6,20 @@ from pathlib import Path
 from types import ModuleType
 
 import pytest
+from mloda.community.extenders.openlineage import OpenLineageExtender
+from mloda.community.extenders.otel.otel_extender import OtelExtender
 
 from mloda_demo.retail.runs import Shown
 from mloda_demo.runtime_lineage.telemetry import LINEAGE_URL, OTLP_ENDPOINT
 
 NOTEBOOKS = Path(__file__).resolve().parents[3] / "notebooks"
 NOTEBOOK = NOTEBOOKS / "runtime_lineage.py"
+TICKET = (
+    "| Ticket | Question | Client says | Monitoring |",
+    "| Wrong number from the assistant | Open receivables of client B? | 7,500.00 | all green |",
+    "The number goes into the 2025 closing.",
+)
+HOOKS = "hooks = {OtelExtender(tracer_provider=traces), OpenLineageExtender(client=lineage), *metrics}"
 ROWS = (
     ("1 One answer, one ID", "A trace", "Every span is a data step with a lineage twin"),
     ("2 Another request, another path", "Lineage as a fixed map", "It belongs to the request"),
@@ -42,7 +50,10 @@ def test_the_case_and_four_steps_each_a_header_and_its_commands() -> None:
     # Step 4 has two commands: the refused export, then the office with the right chart.
     assert cells[1:] == [SLIDE, COMMAND] * 5 + [COMMAND]
     source = NOTEBOOK.read_text()
-    assert "## The case" in source
+    # The first screen: the ticket, then the two hooks, then the call.
+    case = source[source.index("## The case") : source.index("mloda.run_all(")]
+    places = [case.find(line) for line in (*TICKET, HOOKS)]
+    assert -1 not in places and places == sorted(places)
     for title, know, change in ROWS:
         assert f"## {title}" in source
         assert f"| {know} | {change} |" in source
@@ -57,10 +68,13 @@ def test_the_commands_are_plain_mloda_calls_with_the_hooks() -> None:
 
 
 def test_every_command_shows_its_result() -> None:
-    outputs, _ = _notebook().app.run()
+    outputs, defs = _notebook().app.run()
+    assert {type(hook) for hook in defs["hooks"]} == {OtelExtender, OpenLineageExtender}
     pages = [output._mime_()[1] for output in outputs if isinstance(output, Shown)]
     assert len(pages) == 6
-    assert "13,750.50" in pages[0] and "4 steps, all ok" in pages[0] and "<table" not in pages[0]
+    # The case shows what a dashboard would: the number and how the run ended, no cited rows.
+    assert "13,750.50" in pages[0] and "4 steps, all ok" in pages[0]
+    assert "<table" not in pages[0] and "Summed from" not in pages[0]
     assert "revenue__sources, 22,485.06" in pages[1] and "<td>DatevExtfReader</td>" in pages[1]
     assert "revenue__sources, 22,485.06" in pages[2] and "<td>GdpduReader</td>" in pages[2]
     assert "13,750.50" in pages[3] and "chart SKR04" in pages[3] and "<td>error</td>" not in pages[3]

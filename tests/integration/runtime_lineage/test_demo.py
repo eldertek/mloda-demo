@@ -4,6 +4,8 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from mloda.community.extenders.openlineage import OpenLineageExtender
+from mloda.community.extenders.otel.otel_extender import OtelExtender
 from mloda.community.feature_groups.experimental.german_ledger.skr import ChartConflict, SkrAccountFeatureGroup
 from mloda.user import Feature, PluginCollector, RunResult, mloda
 from openlineage.client.event_v2 import RunEvent, RunState
@@ -36,12 +38,14 @@ def recorded() -> Iterator[Telemetry]:
 
 
 def ask(recorded: Telemetry, name: str, reader: str, folder: Path, office: PluginCollector = READS_SKR04) -> RunResult:
+    # The two hooks, built as on the notebook's first screen.
+    hooks = {OtelExtender(tracer_provider=recorded.tracer_provider), OpenLineageExtender(client=recorded.lineage)}
     return mloda.run_all(
         [Feature(name, options={reader: str(folder)})],
         compute_frameworks=["PyArrowTable"],
         data_access_collection=BOOKS,
         plugin_collector=office,
-        function_extender=set(recorded.extenders),
+        function_extender=hooks,
     )
 
 
@@ -160,7 +164,7 @@ def test_show_formats_the_answer_the_trace_and_the_lineage(recorded: Telemetry) 
 
     summary = page(show(result, recorded, evidence=False))
     assert "22,485.06" in summary and "4 steps, all ok" in summary
-    assert "<table" not in summary and "<svg" not in summary
+    assert "<table" not in summary and "<svg" not in summary and f"{BATCH}@" not in summary
 
 
 def test_show_formats_a_refusal_with_the_run_that_raised_it(recorded: Telemetry) -> None:

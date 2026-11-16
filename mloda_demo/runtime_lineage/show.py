@@ -34,7 +34,7 @@ def show(answer: RunResult | BaseException, telemetry: Telemetry, evidence: bool
     if isinstance(answer, BaseException):
         head, run_id = refusal(answer), telemetry.refused_run(answer)
     else:
-        head, run_id = value(answer), answer.run_id
+        head, run_id = value(answer, origins=evidence), answer.run_id
     if run_id is None:
         return Shown(head)
     spans, events = telemetry.spans(run_id), telemetry.events(run_id)
@@ -51,12 +51,12 @@ def outcome(rows: Sequence[dict[str, str]]) -> str:
     return f'<p class="retail-label">{text}</p>'
 
 
-def value(result: RunResult) -> str:
+def value(result: RunResult, origins: bool = True) -> str:
     frame = result[0]
     column = next(name for name in frame.column_names if name.endswith("~value"))
     name = column.removesuffix("~value")
     shown = f'<p class="retail-value">{html.escape(name)}, {frame.column(column)[0].as_py():,.2f}</p>'
-    if f"{name}~origins" not in frame.column_names:
+    if not origins or f"{name}~origins" not in frame.column_names:
         return shown
     cited = "\n".join(frame.column(f"{name}~origins")[0].as_py())
     return f'{shown}<p class="retail-label">Summed from</p><pre><code>{html.escape(cited)}</code></pre>'
