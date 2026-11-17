@@ -100,13 +100,12 @@ Talk: *"Runtime Lineage: End-to-End OpenTelemetry Tracing for AI Data Systems"*.
 
 A tax office's assistant answers from clients' ledger exports. Every answer is one plain mloda call; the OpenTelemetry and OpenLineage extenders give it a trace and a lineage run that point at each other. Built on [`mloda-community-german-ledger`](https://pypi.org/project/mloda-community-german-ledger/) (experimental), which totals DATEV and GDPdU exports and cites the ledger rows behind each total.
 
-| Step | You know | The small change | What happens |
+| Screen | You know | The small change | What happens |
 |---|---|---|---|
-| The case | | | Client B's receivables: a plausible number on a green run |
-| 1 One answer, one ID | A trace | Every span is a data step with a lineage twin | The same answer opened: file, rule and chart on four green spans, and a lineage run that points at the trace |
-| 2 Another request, another path | Lineage as a fixed map | It belongs to the request | Client C's revenue from a GDPdU export: another reader, another file, the same chart |
-| 3 The wrong number | Red spans | A green span carries evidence | Client B's same file read with SKR03 gives the client's number: the batch states no chart and the office read SKR04, so the bank account counted as receivables |
-| 4 Make it fail loudly | Alerts on failures | Wrong data became a failure | The corrected export states SKR03 and the run refuses; set up with that chart, the office gets the right total |
+| The case: two numbers, no suspect | | | Client B's receivables: the client says 7,500.00, the assistant says 13,750.50 on a green run |
+| The witness: what the hooks recorded | A trace | Every span is a data step with a lineage twin | The same answer opened: file, rule and chart on four green spans, and a lineage run that points at the trace |
+| The suspect: the chart of accounts | Red spans | A green span carries evidence | Client B's same file read with SKR03 gives the client's number: the batch states no chart and the office read SKR04, so the bank account counted as receivables |
+| The fix: make it fail loudly | Alerts on failures | Wrong data became a failure | The corrected export states SKR03 and the run refuses |
 
 ```bash
 marimo edit notebooks/runtime_lineage.py

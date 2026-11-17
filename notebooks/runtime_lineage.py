@@ -30,7 +30,7 @@ def _():
     from mloda_demo import runtime_lineage as demo
 
     # The local details, named once: the clients' books, the charts the office can read, where the hooks send.
-    client_b, client_c = str(demo.CLIENT_B), str(demo.CLIENT_C)
+    client_b = str(demo.CLIENT_B)
     client_b_corrected = str(demo.CLIENT_B_CORRECTED)
     reads_skr04, reads_skr03 = demo.READS_SKR04, demo.READS_SKR03
     recorded = demo.telemetry()
@@ -45,7 +45,6 @@ def _():
         OtelExtender,
         client_b,
         client_b_corrected,
-        client_c,
         lineage,
         metrics,
         mloda,
@@ -61,7 +60,7 @@ def _():
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## The case
+    ## The case: two numbers, no suspect
 
     | Question | Client says | Monitoring |
     |---|---|---|
@@ -103,7 +102,7 @@ def _(
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 1 One answer, one ID
+    ## The witness: what the hooks recorded
     """)
     return
 
@@ -125,29 +124,7 @@ def _(Feature, client_b, hooks, mloda, office, reads_skr04, show):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 2 Another request, another path
-    """)
-    return
-
-
-@app.cell
-def _(Feature, client_c, hooks, mloda, office, reads_skr04, show):
-    # Another request: client C's revenue. Its books arrive as a tax audit export.
-    show(
-        mloda.run_all(
-            [Feature("revenue__sources", options={"GdpduReader": client_c})],
-            plugin_collector=reads_skr04,
-            function_extender=hooks,
-            **office,
-        )
-    )
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## 3 The wrong number
+    ## The suspect: the chart of accounts
     """)
     return
 
@@ -169,7 +146,7 @@ def _(Feature, client_b, hooks, mloda, office, reads_skr03, show):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 4 Make it fail loudly
+    ## The fix: make it fail loudly
     """)
     return
 
@@ -187,20 +164,6 @@ def _(ChartConflict, Feature, client_b_corrected, hooks, mloda, office, reads_sk
     except ChartConflict as _refusal:
         _answer = _refusal
     show(_answer)
-    return
-
-
-@app.cell
-def _(Feature, client_b_corrected, hooks, mloda, office, reads_skr03, show):
-    # The office sets client B up with its own chart.
-    show(
-        mloda.run_all(
-            [Feature("receivables__sources", options={"DatevExtfReader": client_b_corrected})],
-            plugin_collector=reads_skr03,
-            function_extender=hooks,
-            **office,
-        )
-    )
     return
 
 
