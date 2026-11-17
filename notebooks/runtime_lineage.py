@@ -30,7 +30,7 @@ def _():
     from mloda_demo import runtime_lineage as demo
 
     # The local details, named once: the clients' books, the charts the office can read, where the hooks send.
-    client_a, client_b, client_c = str(demo.CLIENT_A), str(demo.CLIENT_B), str(demo.CLIENT_C)
+    client_b, client_c = str(demo.CLIENT_B), str(demo.CLIENT_C)
     client_b_corrected = str(demo.CLIENT_B_CORRECTED)
     reads_skr04, reads_skr03 = demo.READS_SKR04, demo.READS_SKR03
     recorded = demo.telemetry()
@@ -43,7 +43,6 @@ def _():
         Feature,
         OpenLineageExtender,
         OtelExtender,
-        client_a,
         client_b,
         client_b_corrected,
         client_c,
@@ -64,9 +63,9 @@ def _(mo):
     mo.md(r"""
     ## The case
 
-    | Ticket | Question | Client says | Monitoring |
-    |---|---|---|---|
-    | Wrong number from the assistant | Open receivables of client B? | 7,500.00 | all green |
+    | Question | Client says | Monitoring |
+    |---|---|---|
+    | Open receivables of client B? | 7,500.00 | all green |
 
     The number goes into the 2025 closing.
     """)
@@ -105,20 +104,16 @@ def _(
 def _(mo):
     mo.md(r"""
     ## 1 One answer, one ID
-
-    | You know | The small change |
-    |---|---|
-    | A trace | Every span is a data step with a lineage twin |
     """)
     return
 
 
 @app.cell
-def _(Feature, client_a, hooks, mloda, office, reads_skr04, show):
-    # What was client A's revenue in 2025?
+def _(Feature, client_b, hooks, mloda, office, reads_skr04, show):
+    # The same question, now with what the two hooks recorded.
     show(
         mloda.run_all(
-            [Feature("revenue__sources", options={"DatevExtfReader": client_a})],
+            [Feature("receivables__sources", options={"DatevExtfReader": client_b})],
             plugin_collector=reads_skr04,
             function_extender=hooks,
             **office,
@@ -131,17 +126,13 @@ def _(Feature, client_a, hooks, mloda, office, reads_skr04, show):
 def _(mo):
     mo.md(r"""
     ## 2 Another request, another path
-
-    | You know | The small change |
-    |---|---|
-    | Lineage as a fixed map | It belongs to the request |
     """)
     return
 
 
 @app.cell
 def _(Feature, client_c, hooks, mloda, office, reads_skr04, show):
-    # The same question for client C, whose books arrive as a tax audit export.
+    # Another request: client C's revenue. Its books arrive as a tax audit export.
     show(
         mloda.run_all(
             [Feature("revenue__sources", options={"GdpduReader": client_c})],
@@ -157,21 +148,17 @@ def _(Feature, client_c, hooks, mloda, office, reads_skr04, show):
 def _(mo):
     mo.md(r"""
     ## 3 The wrong number
-
-    | You know | The small change |
-    |---|---|
-    | Red spans | A green span carries evidence |
     """)
     return
 
 
 @app.cell
-def _(Feature, client_b, hooks, mloda, office, reads_skr04, show):
-    # Client B again: where did this number come from?
+def _(Feature, client_b, hooks, mloda, office, reads_skr03, show):
+    # Client B's same file, read with the other chart.
     show(
         mloda.run_all(
             [Feature("receivables__sources", options={"DatevExtfReader": client_b})],
-            plugin_collector=reads_skr04,
+            plugin_collector=reads_skr03,
             function_extender=hooks,
             **office,
         )
@@ -183,10 +170,6 @@ def _(Feature, client_b, hooks, mloda, office, reads_skr04, show):
 def _(mo):
     mo.md(r"""
     ## 4 Make it fail loudly
-
-    | You know | The small change |
-    |---|---|
-    | Alerts on failures | Wrong data became a failure |
     """)
     return
 

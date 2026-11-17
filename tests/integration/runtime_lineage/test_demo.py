@@ -158,13 +158,13 @@ def page(shown: Any) -> str:
 def test_show_formats_the_answer_the_trace_and_the_lineage(recorded: Telemetry) -> None:
     result = ask(recorded, "revenue__sources", "DatevExtfReader", CLIENT_A)
     shown = page(show(result, recorded))
-    assert "revenue__sources, 22,485.06" in shown and f"{BATCH}@" in shown
-    assert f"lineage run {result.run_id}" in shown and "4 of 4 lineage steps point at this trace" in shown
+    assert "revenue__sources, 22,485.06" in shown and f"{BATCH}@" not in shown
+    assert f"lineage run {result.run_id[:8]}… · 4 of 4 lineage steps point at this trace" in shown
     assert "file datev:client_a@" in shown and "chart SKR04" in shown and "<svg" in shown
 
     summary = page(show(result, recorded, evidence=False))
     assert "22,485.06" in summary and "4 steps, all ok" in summary
-    assert "<table" not in summary and "<svg" not in summary and f"{BATCH}@" not in summary
+    assert "<table" not in summary and "<svg" not in summary
 
 
 def test_show_formats_a_refusal_with_the_run_that_raised_it(recorded: Telemetry) -> None:
@@ -180,7 +180,7 @@ def test_show_formats_a_refusal_with_the_run_that_raised_it(recorded: Telemetry)
     assert recorded.refused_run(ValueError("another failure")) is None
     shown = page(show(refusal.value, recorded))
     assert "ChartConflict: the books state SKR03" in shown
-    assert f"lineage run {run_id}" in shown and "3 of 3 lineage steps point at this trace" in shown
+    assert f"lineage run {run_id[:8]}… · 3 of 3 lineage steps point at this trace" in shown
     assert "<td>error</td>" in shown and "refused ChartConflict" in shown
 
 

@@ -103,16 +103,16 @@ A tax office's assistant answers from clients' ledger exports. Every answer is o
 | Step | You know | The small change | What happens |
 |---|---|---|---|
 | The case | | | Client B's receivables: a plausible number on a green run |
-| 1 One answer, one ID | A trace | Every span is a data step with a lineage twin | Client A's revenue from a DATEV batch, with its cited rows |
-| 2 Another request, another path | Lineage as a fixed map | It belongs to the request | The same question on client C's GDPdU export: another reader, the same total |
-| 3 The wrong number | Red spans | A green span carries evidence | Client B's batch states no chart and the office reads SKR04, so the bank account counts as receivables |
+| 1 One answer, one ID | A trace | Every span is a data step with a lineage twin | The same answer opened: file, rule and chart on four green spans, and a lineage run that points at the trace |
+| 2 Another request, another path | Lineage as a fixed map | It belongs to the request | Client C's revenue from a GDPdU export: another reader, another file, the same chart |
+| 3 The wrong number | Red spans | A green span carries evidence | Client B's same file read with SKR03 gives the client's number: the batch states no chart and the office read SKR04, so the bank account counted as receivables |
 | 4 Make it fail loudly | Alerts on failures | Wrong data became a failure | The corrected export states SKR03 and the run refuses; set up with that chart, the office gets the right total |
 
 ```bash
 marimo edit notebooks/runtime_lineage.py
 ```
 
-Run all cells, then switch to the slides, as for the retail notebook. `show` only formats: the number with its cited rows, one line per step read from the run's spans, and the lineage chain read from its OpenLineage events.
+Run all cells, then switch to the slides, as for the retail notebook. `show` only formats: the number, one line per step read from the run's spans, and the lineage chain read from its OpenLineage events.
 
 The books in `demo_data/runtime_lineage/` are invented, in real formats (see `SOURCE.md` there).
 

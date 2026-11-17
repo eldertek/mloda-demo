@@ -15,17 +15,12 @@ from mloda_demo.runtime_lineage.telemetry import LINEAGE_URL, OTLP_ENDPOINT
 NOTEBOOKS = Path(__file__).resolve().parents[3] / "notebooks"
 NOTEBOOK = NOTEBOOKS / "runtime_lineage.py"
 TICKET = (
-    "| Ticket | Question | Client says | Monitoring |",
-    "| Wrong number from the assistant | Open receivables of client B? | 7,500.00 | all green |",
+    "| Question | Client says | Monitoring |",
+    "| Open receivables of client B? | 7,500.00 | all green |",
     "The number goes into the 2025 closing.",
 )
 HOOKS = "hooks = {OtelExtender(tracer_provider=traces), OpenLineageExtender(client=lineage), *metrics}"
-ROWS = (
-    ("1 One answer, one ID", "A trace", "Every span is a data step with a lineage twin"),
-    ("2 Another request, another path", "Lineage as a fixed map", "It belongs to the request"),
-    ("3 The wrong number", "Red spans", "A green span carries evidence"),
-    ("4 Make it fail loudly", "Alerts on failures", "Wrong data became a failure"),
-)
+STEPS = ("1 One answer, one ID", "2 Another request, another path", "3 The wrong number", "4 Make it fail loudly")
 SLIDE, COMMAND = {"type": "slide"}, {"type": "fragment", "showCode": True}
 
 
@@ -54,16 +49,16 @@ def test_the_case_and_four_steps_each_a_header_and_its_commands() -> None:
     case = source[source.index("## The case") : source.index("mloda.run_all(")]
     places = [case.find(line) for line in (*TICKET, HOOKS)]
     assert -1 not in places and places == sorted(places)
-    for title, know, change in ROWS:
-        assert f"## {title}" in source
-        assert f"| {know} | {change} |" in source
+    # A step's header is its title, nothing else.
+    for title in STEPS:
+        assert f'mo.md(r"""\n    ## {title}\n    """)' in source
 
 
 def test_the_commands_are_plain_mloda_calls_with_the_hooks() -> None:
     source = NOTEBOOK.read_text()
     assert source.count("mloda.run_all(") == source.count("function_extender=hooks") == 6
-    # The chart the office reads is on every slide; only the last command changes it.
-    assert source.count("plugin_collector=reads_skr04") == 5 and source.count("plugin_collector=reads_skr03") == 1
+    # The chart the office reads is on every slide; step 3 and the last command read with the other one.
+    assert source.count("plugin_collector=reads_skr04") == 4 and source.count("plugin_collector=reads_skr03") == 2
     assert "except ChartConflict" in source
 
 
@@ -72,12 +67,14 @@ def test_every_command_shows_its_result() -> None:
     assert {type(hook) for hook in defs["hooks"]} == {OtelExtender, OpenLineageExtender}
     pages = [output._mime_()[1] for output in outputs if isinstance(output, Shown)]
     assert len(pages) == 6
-    # The case shows what a dashboard would: the number and how the run ended, no cited rows.
-    assert "13,750.50" in pages[0] and "4 steps, all ok" in pages[0]
-    assert "<table" not in pages[0] and "Summed from" not in pages[0]
-    assert "revenue__sources, 22,485.06" in pages[1] and "<td>DatevExtfReader</td>" in pages[1]
+    # The case shows what a dashboard would: the number and how the run ended.
+    assert "13,750.50" in pages[0] and "4 steps, all ok" in pages[0] and "<table" not in pages[0]
+    # One ticket: the answer opened, another request, then the same file read with the other chart.
+    assert "13,750.50" in pages[1] and "chart SKR04" in pages[1] and "<td>error</td>" not in pages[1]
     assert "revenue__sources, 22,485.06" in pages[2] and "<td>GdpduReader</td>" in pages[2]
-    assert "13,750.50" in pages[3] and "chart SKR04" in pages[3] and "<td>error</td>" not in pages[3]
+    assert "receivables__sources, 7,500.00" in pages[3] and "chart SKR03" in pages[3]
+    same_file = pages[1].partition("file datev:client_b@")[2][:12]
+    assert same_file and f"file datev:client_b@{same_file}" in pages[3]
     assert "ChartConflict: " in pages[4] and "<td>error</td>" in pages[4]
     assert "receivables__sources, 7,500.00" in pages[5] and "chart SKR03" in pages[5]
     for number, page in enumerate(pages[1:], start=1):

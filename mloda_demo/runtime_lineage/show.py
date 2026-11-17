@@ -27,14 +27,14 @@ GROUP, OPERATION = "mloda.feature_group.name", "mloda.operation.name"
 
 
 def show(answer: RunResult | BaseException, telemetry: Telemetry, evidence: bool = True) -> Shown:
-    """The number with its cited rows, or the refusal; then the run's trace, one line per step, and its lineage.
+    """The number, or the refusal; then the run's trace, one line per step, and its lineage.
 
     With `evidence=False`, only the number and how the run ended, as a dashboard would show it.
     """
     if isinstance(answer, BaseException):
         head, run_id = refusal(answer), telemetry.refused_run(answer)
     else:
-        head, run_id = value(answer, origins=evidence), answer.run_id
+        head, run_id = value(answer), answer.run_id
     if run_id is None:
         return Shown(head)
     spans, events = telemetry.spans(run_id), telemetry.events(run_id)
@@ -51,15 +51,11 @@ def outcome(rows: Sequence[dict[str, str]]) -> str:
     return f'<p class="retail-label">{text}</p>'
 
 
-def value(result: RunResult, origins: bool = True) -> str:
+def value(result: RunResult) -> str:
     frame = result[0]
     column = next(name for name in frame.column_names if name.endswith("~value"))
     name = column.removesuffix("~value")
-    shown = f'<p class="retail-value">{html.escape(name)}, {frame.column(column)[0].as_py():,.2f}</p>'
-    if not origins or f"{name}~origins" not in frame.column_names:
-        return shown
-    cited = "\n".join(frame.column(f"{name}~origins")[0].as_py())
-    return f'{shown}<p class="retail-label">Summed from</p><pre><code>{html.escape(cited)}</code></pre>'
+    return f'<p class="retail-value">{html.escape(name)}, {frame.column(column)[0].as_py():,.2f}</p>'
 
 
 def refusal(error: BaseException) -> str:
@@ -71,11 +67,15 @@ def short(name: object) -> str:
 
 
 def ids(run_id: str, spans: Sequence[ReadableSpan], events: Sequence[RunEvent]) -> str:
-    """The one ID: the trace, the lineage run, and how many of the run's lineage steps point at the trace."""
+    """The one ID: the trace, the lineage run, and how many of the run's lineage steps point at the trace.
+
+    Both IDs are cut to their first eight characters, so the line fits a slide.
+    """
     trace_id = format(spans[0].context.trace_id, "032x") if spans else "?"
     step_events = [event for event in events if event.eventType != RunState.START and parent_of(event) == run_id]
     linked = sum(1 for event in step_events if trace_of(event) == trace_id)
-    text = f"trace {trace_id} · lineage run {run_id} · {linked} of {len(step_events)} lineage steps point at this trace"
+    link = f"{linked} of {len(step_events)} lineage steps point at this trace"
+    text = f"trace {trace_id[:8]}… · lineage run {run_id[:8]}… · {link}"
     return f'<p class="retail-label">{html.escape(text)}</p>'
 
 
