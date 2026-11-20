@@ -8,8 +8,6 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from mloda.community.extenders.openlineage import OpenLineageExtender
-from mloda.community.extenders.otel.otel_extender import OtelExtender
 from mloda.community.extenders.otel.otel_metrics_extender import OtelMetricsExtender
 from mloda.steward import Extender
 from openlineage.client.client import OpenLineageClient
@@ -56,10 +54,11 @@ class ForwardingTransport(RecordingTransport):
 
 @dataclass(frozen=True)
 class Telemetry:
-    """The hooks passed to a run, and what they recorded."""
+    """Where a run's hooks send, and what they recorded."""
 
-    extenders: frozenset[Extender]
     tracer_provider: TracerProvider
+    lineage: OpenLineageClient
+    metrics: frozenset[Extender]  # the OtelMetricsExtender with the stack, else empty
     meter_provider: MeterProvider | None
     recorded_spans: InMemorySpanExporter
     transport: ForwardingTransport
@@ -114,7 +113,7 @@ def telemetry(environ: Mapping[str, str] | None = None) -> Telemetry:
     tracer_provider = TracerProvider(resource=resource)
     tracer_provider.add_span_processor(SimpleSpanProcessor(recorded))
     meter_provider = None
-    extenders: set[Extender] = set()
+    metrics: set[Extender] = set()
     endpoint = environ.get(OTLP_ENDPOINT, "").rstrip("/")
     if endpoint:
         # Short timeouts and no retries: a stack that is down must not stall a run.
@@ -136,12 +135,11 @@ def telemetry(environ: Mapping[str, str] | None = None) -> Telemetry:
         )
         reader = PeriodicExportingMetricReader(exporter, export_interval_millis=2000)
         meter_provider = MeterProvider(resource=resource, metric_readers=[reader])
-        extenders.add(OtelMetricsExtender(meter_provider=meter_provider))
+        metrics.add(OtelMetricsExtender(meter_provider=meter_provider))
     url = environ.get(LINEAGE_URL, "")
     forward = HttpTransport(HttpConfig(url=url, timeout=EXPORT_TIMEOUT, retry={"total": 0})) if url else None
     transport = ForwardingTransport(forward)
     client = OpenLineageClient(transport=transport)
     if client.transport is not transport:
         raise RuntimeError("OPENLINEAGE_DISABLED is set; the demo needs the lineage events")
-    extenders |= {OtelExtender(tracer_provider=tracer_provider), OpenLineageExtender(client=client)}
-    return Telemetry(frozenset(extenders), tracer_provider, meter_provider, recorded, transport)
+    return Telemetry(tracer_provider, client, frozenset(metrics), meter_provider, recorded, transport)

@@ -32,17 +32,6 @@
       {
         "type": "fragment",
         "showCode": true
-      },
-      {
-        "type": "slide"
-      },
-      {
-        "type": "fragment",
-        "showCode": true
-      },
-      {
-        "type": "fragment",
-        "showCode": true
       }
     ],
     "deck": {
